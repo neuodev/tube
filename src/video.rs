@@ -1,8 +1,11 @@
+use futures_util::StreamExt;
+use indicatif::{ProgressBar, ProgressStyle};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
-use std::fs::File;
+use std::cmp::min;
+use std::io::copy;
 use std::time::Duration;
-use std::{io::copy, process};
+use std::{fs::File, io::Write};
 use terminal_menu::{button, label, list, menu, mut_menu, run, TerminalMenuItem};
 
 const VIDEO_INFO_ENDPOINT: &str = "https://youtubei.googleapis.com/youtubei/v1/player?key=AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8";
@@ -37,13 +40,36 @@ pub struct Video {
 
 impl Video {
     pub async fn download(&self, format: &VideoFormat) {
-        println!("Download {}...", self.details.title);
         let url = &format.url;
         let filename = format!("{}.mp4", self.details.title);
         let resp = reqwest::get(url.as_str()).await.expect("request failed");
-        let mut out = File::create(filename).expect("FAilled to create the output file");
-        let inp = resp.bytes().await.expect("Filed to read file bytes");
-        copy(&mut inp.as_ref(), &mut out).expect("failed to copy content");
+        let total_size = resp
+            .content_length()
+            .ok_or(format!("Failed to get content length from '{}'", &url))
+            .unwrap();
+
+        // Indicatif setup
+        let pb = ProgressBar::new(total_size);
+        pb.set_style(ProgressStyle::default_bar()
+        .template("{msg}\n{spinner:.green} [{elapsed_precise}] [{wide_bar:.cyan/blue}] {bytes}/{total_bytes} ({bytes_per_sec}, {eta})")
+        .progress_chars("#>-"));
+        pb.set_message(&format!("Downloading {}", self.details.title));
+
+        let mut downloaded: u64 = 0;
+        let mut stream = resp.bytes_stream();
+        let mut file = File::create(filename).expect("FAilled to create the output file");
+        while let Some(item) = stream.next().await {
+            let chunk = item
+                .or(Err(format!("Error while downloading file")))
+                .unwrap();
+            file.write_all(&chunk)
+                .or(Err(format!("Error while writing to file")))
+                .unwrap();
+
+            let new = min(downloaded + (chunk.len() as u64), total_size);
+            downloaded = new;
+            pb.set_position(new);
+        }
     }
     pub fn select_video_format(&mut self) -> VideoFormat {
         let qualities = self

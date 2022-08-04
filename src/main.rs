@@ -20,6 +20,7 @@ use video::Video;
 async fn main() {
     let video_ids = env::args().skip(1).collect::<Vec<String>>();
     let video_id = video_ids.get(0).unwrap();
+    println!("Fetch vidoes info...");
     let mut video = Video::get_video_info(video_id).await;
     let format = video.select_video_format();
     video.download(&format).await;
