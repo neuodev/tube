@@ -1,12 +1,12 @@
 use futures_util::StreamExt;
 use indicatif::{ProgressBar, ProgressStyle};
+use reqwest::Response;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::cmp::min;
-use std::io::copy;
 use std::time::Duration;
 use std::{fs::File, io::Write};
-use terminal_menu::{button, label, list, menu, mut_menu, run, TerminalMenuItem};
+use terminal_menu::{button, label, menu, mut_menu, run, TerminalMenuItem};
 
 const VIDEO_INFO_ENDPOINT: &str = "https://youtubei.googleapis.com/youtubei/v1/player?key=AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8";
 
@@ -23,13 +23,13 @@ pub struct VideoFormat {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct VideoDetails {
     #[serde(rename = "videoId")]
-    video_id: String,
-    title: String,
+    pub video_id: String,
+    pub title: String,
     #[serde(rename = "lengthSeconds")]
-    length_in_sec: String,
-    author: String,
+    pub length_in_sec: String,
+    pub author: String,
     #[serde(rename = "viewCount")]
-    viwe_count: String,
+    pub viwe_count: String,
 }
 
 #[derive(Debug, Clone)]
@@ -39,24 +39,11 @@ pub struct Video {
 }
 
 impl Video {
-    pub async fn download(&self, format: &VideoFormat) {
-        let url = &format.url;
+    pub async fn download(&self, res: Response, pb: &ProgressBar, total_size: u64) {
         let filename = format!("{}.mp4", self.details.title);
-        let resp = reqwest::get(url.as_str()).await.expect("request failed");
-        let total_size = resp
-            .content_length()
-            .ok_or(format!("Failed to get content length from '{}'", &url))
-            .unwrap();
-
-        // Indicatif setup
-        let pb = ProgressBar::new(total_size);
-        pb.set_style(ProgressStyle::default_bar()
-        .template("{msg}\n{spinner:.green} [{elapsed_precise}] [{wide_bar:.cyan/blue}] {bytes}/{total_bytes} ({bytes_per_sec}, {eta})")
-        .progress_chars("#>-"));
-        pb.set_message(&format!("Downloading {}", self.details.title));
 
         let mut downloaded: u64 = 0;
-        let mut stream = resp.bytes_stream();
+        let mut stream = res.bytes_stream();
         let mut file = File::create(filename).expect("FAilled to create the output file");
         while let Some(item) = stream.next().await {
             let chunk = item
@@ -71,7 +58,7 @@ impl Video {
             pb.set_position(new);
         }
     }
-    pub fn select_video_format(&mut self) -> VideoFormat {
+    pub fn select_video_format(&self) -> VideoFormat {
         let qualities = self
             .formats
             .clone()
@@ -99,6 +86,16 @@ impl Video {
             .into_iter()
             .find(|f| f.quality.as_str() == mut_menu(&menu).selected_item_name())
             .unwrap()
+    }
+
+    pub async fn fetch(&self, format: &VideoFormat) -> (u64, reqwest::Response) {
+        let url = &format.url;
+        let resp = reqwest::get(url.as_str()).await.expect("request failed");
+        let total_size = resp
+            .content_length()
+            .ok_or(format!("Failed to get content length from '{}'", &url))
+            .unwrap();
+        (total_size, resp)
     }
 
     pub async fn get_video_info(video_id: &String) -> Video {
