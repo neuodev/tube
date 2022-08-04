@@ -13,6 +13,7 @@ mod video;
 use serde_json::{json, Value};
 use std::env;
 use video::Video;
+use terminal_menu::{menu, button, run , mut_menu};
 
 // v1 example i8NETqtGHms
 // v2 example NLtt4S9ErIA
@@ -20,11 +21,18 @@ const VIDEO_INFO_ENDPOINT: &str = "https://youtubei.googleapis.com/youtubei/v1/p
 
 #[tokio::main]
 async fn main() {
-    println!("{:?}", env::args().collect::<Vec<String>>());
-    let video_ids = env::args().skip(1).collect::<Vec<String>>();
-    let video_id = video_ids.get(0).unwrap();
-    let video = get_video_info(video_id).await;
-    video.download().await;
+    let menu = menu(vec![
+        button("button"),
+        button("Another button")
+    ]);
+    
+    run(&menu);
+    println!("{}", mut_menu(&menu).selected_item_name());
+    // println!("{:?}", env::args().collect::<Vec<String>>());
+    // let video_ids = env::args().skip(1).collect::<Vec<String>>();
+    // let video_id = video_ids.get(0).unwrap();
+    // let video = get_video_info(video_id).await;
+    // video.download().await;
 }
 
 async fn get_video_info(video_id: &String) -> Video {
