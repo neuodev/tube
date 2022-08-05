@@ -1,3 +1,6 @@
-## Refs
+# RustTube
+CLI for downloading multiple youtube videos at once. 
 
-[download file with progress bars](https://gist.github.com/giuliano-oliveira/4d11d6b3bb003dba3a1b53f43d81b30d)
+## Features 
+1. Choose videos quality
+2. Download multiple videos in parallel. 
