@@ -1,18 +1,10 @@
-//! Download videos from youtube
-//! ```sh
-//!     > tube.exe v1 v2
-//!     > tube.exe id1 id2
-//! ```
-//!
-//! ## Todo
-//! 1. Make a prototype for downlaoding a single video given it id
-//! 2. Make the user choose between diffrent qualities
-//! 3. Download multiple videos at the same time
-
 mod video;
 use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
-use std::thread;
-use std::{env, time::Duration};
+use std::borrow::Cow;
+use std::io::Write;
+use std::{thread};
+use std::{time::Duration};
+use url::{Url};
 use video::Video;
 
 // v1 example i8NETqtGHms
@@ -20,9 +12,27 @@ use video::Video;
 
 #[tokio::main]
 async fn main() {
-    let video_ids = env::args().skip(1).collect::<Vec<String>>();
-    println!("Fetching vidoes info...");
+    let mut video_ids = vec![];
+    loop {
+        let url = user_input("Video Url: ").await;
+        let querys = Url::parse(url.as_str()).expect(format!("{} is not a valid url", url).as_str());
+        if let Some((Cow::Borrowed(key), Cow::Borrowed(val))) = querys.query_pairs().next() {
+            if key == "v" {
+                video_ids.push(val.to_string())
+            }
+        };
 
+        match user_input("Add more?(Y/n): ").await.to_lowercase().as_str() {
+            "n" | "no" => {
+                break;
+            },
+            _ => {}
+        };
+
+    }
+
+    println!("Will download {} video(s)", video_ids.len());
+    println!("Fetching vidoes info...");
     let mut videos = vec![];
     for id in &video_ids {
         let video = Video::get_video_info(id).await;
@@ -60,4 +70,14 @@ async fn main() {
     }
 
     m.clear().unwrap()
+}
+
+
+async fn user_input(prefix: &str) -> String {
+    print!("{}", prefix);
+    ::std::io::stdout().flush().unwrap();
+    let mut buf = String::new();
+    ::std::io::stdin().read_line(&mut buf).unwrap();
+
+    buf.trim().to_string()
 }
