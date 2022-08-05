@@ -1,36 +1,29 @@
 mod video;
 use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
 use std::borrow::Cow;
+use std::fs::ReadDir;
 use std::io::Write;
 use std::{thread};
 use std::{time::Duration};
+use std::path::Path;
 use url::{Url};
 use video::Video;
-
-// v1 example i8NETqtGHms
-// v2 example NLtt4S9ErIA
 
 #[tokio::main]
 async fn main() {
     let mut video_ids = vec![];
     loop {
-        let url = user_input("Video Url: ").await;
+        let url = match user_input("Video Url: ").await.as_str() {
+            "" => break,
+            val => val.to_string()
+        };
         let querys = Url::parse(url.as_str()).expect(format!("{} is not a valid url", url).as_str());
         if let Some((Cow::Borrowed(key), Cow::Borrowed(val))) = querys.query_pairs().next() {
             if key == "v" {
                 video_ids.push(val.to_string())
             }
         };
-
-        match user_input("Add more?(Y/n): ").await.to_lowercase().as_str() {
-            "n" | "no" => {
-                break;
-            },
-            _ => {}
-        };
-
     }
-
     println!("Will download {} video(s)", video_ids.len());
     println!("Fetching vidoes info...");
     let mut videos = vec![];
@@ -43,7 +36,7 @@ async fn main() {
     for video in &videos {
         let format = video.select_video_format();
         formats.push(format);
-        thread::sleep(Duration::from_secs(1));
+        thread::sleep(Duration::from_millis(500));
     }
 
     let mut handlers = vec![];

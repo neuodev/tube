@@ -3,12 +3,10 @@ use indicatif::{ProgressBar};
 use reqwest::Response;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
-use tokio::io::{stdout, AsyncWriteExt};
 use std::cmp::min;
 use std::time::Duration;
 use std::{fs::File, io::Write};
 use terminal_menu::{button, label, menu, mut_menu, run, TerminalMenuItem};
-use std::io;
 
 const VIDEO_INFO_ENDPOINT: &str = "https://youtubei.googleapis.com/youtubei/v1/player?key=AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8";
 
